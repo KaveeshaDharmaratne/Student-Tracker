@@ -35,7 +35,7 @@
             <h3 class="text-xl font-bold">Map View</h3>
             <p class="text-gray-500">Here you can see the location of students.</p>
             <div id="map" class="mt-4 h-[calc(100vh-10rem)] bg-gray-300 rounded-lg"></div>
-            <!-- You can integrate your map library here -->
+
         </div>
     </div>
 </div>
@@ -44,17 +44,14 @@
   <script>
     let map;
     let teacherMarker;
-    const safeDistance = 25; // 50 meters
+    const safeDistance = 25; // x meters
+    const markers = {}; // Map to store student markers by ID
 
     // Teacher's location (will be updated with actual location)
-    let teacherLocation = { lat: 6.840095, lng: 79.952275 };
+    let teacherLocation = { lat: 0, lng: 0 };
 
     // Students' locations (example)
-    let students = [
-      // { id: 1, name: "Student 1", lat: teacherLocation.lat, lng: teacherLocation.lng },
-      // { id: 2, name: "Student 2", lat: teacherLocation.lat, lng: teacherLocation.lng },
-      // { id: 3, name: "Student 3", lat: teacherLocation.lat, lng: teacherLocation.lng },
-    ];
+    let students = [];
 
     // Initialize the map
     function initMap() {
@@ -74,119 +71,155 @@
       });
 
       // Add circle for safe distance
-    new google.maps.Circle({
-      strokeColor: "#00FF00",
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: "#00FF00",
-      fillOpacity: 0.2,
-      map: map,
-      center: teacherLocation,
-      radius: safeDistance,
-    });
-
-    // Add student markers
-    updateStudentMarkers();
-  }
-
-   // Function to update student markers
-   function updateStudentMarkers() {
-    students.forEach((student) => {
-      const studentMarker = new google.maps.Marker({
-        position: { lat: student.lat, lng: student.lng },
+      new google.maps.Circle({
+        strokeColor: "#00FF00",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: "#00FF00",
+        fillOpacity: 0.2,
         map: map,
-        title: student.name,
-        label: {
-            text: student.name,
-            color: "black",
-            fontSize: "12px",
-            fontWeight: "bold",
-            paddingBottom: "10px",
-          },
-        icon: {
-          url: "http://maps.google.com/mapfiles/ms/icons/pink-dot.png",
-          labelOrigin: new google.maps.Point(15, -10) // Adjust the label position
-        },
+        center: teacherLocation,
+        radius: safeDistance,
       });
 
-      // Check distance and update marker color
-      const distance = calculateDistance(teacherLocation, student);
-      if (distance > safeDistance) {
-        studentMarker.setIcon("http://maps.google.com/mapfiles/ms/icons/red-dot.png");
-        alert(`${student.name} is out of the safe zone!`);
-      }
-    });
-  }
-
-  // Calculate distance between two points using Haversine formula
-  function calculateDistance(teacher, student) {
-    const R = 6371e3; // Earth radius in meters
-    const φ1 = (teacher.lat * Math.PI) / 180;
-    const φ2 = (student.lat * Math.PI) / 180;
-    const Δφ = ((student.lat - teacher.lat) * Math.PI) / 180;
-    const Δλ = ((student.lng - teacher.lng) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
-  }
-
-  // Function to fetch GPS data from Adafruit IO
-  async function fetchGPSData() {
-    try {
-      const responseLatitude = await fetch('https://io.adafruit.com/api/v2/kaviboyzz/feeds/lati');
-      const responseLongitude = await fetch('https://io.adafruit.com/api/v2/kaviboyzz/feeds/longi');
-      const responseName = await fetch('https://io.adafruit.com/api/v2/kaviboyzz/feeds/name');
-
-      const dataLatitude = await responseLatitude.json();
-      const dataLongitude = await responseLongitude.json();
-      const dataName = await responseName.json();
-
-      // Assuming the data format is { last_value: "..." }
-      students = [
-        {
-          id: 1,
-          name: dataName.last_value,
-          lat: parseFloat(dataLatitude.last_value),
-          lng: parseFloat(dataLongitude.last_value),
-        },
-      ];
+      // Add student markers
       updateStudentMarkers();
-    } catch (error) {
-      console.error('Error fetching GPS data:', error);
     }
-  }
 
-  // Fetch GPS data every 10 seconds
-  setInterval(fetchGPSData, 10000);
-  
-  // Get the actual location of the device
-  // function getActualLocation() {
-  //   if (navigator.geolocation) {
-  //     navigator.geolocation.getCurrentPosition(
-  //       (position) => {
-  //         teacherLocation = {
-  //           lat: position.coords.latitude,
-  //           lng: position.coords.longitude,
-  //         };
-  //         initMap();
-  //       },
-  //       (error) => {
-  //         console.error('Error getting location:', error);
-  //         initMap(); // Initialize map with default location if error occurs
-  //       }
-  //     );
-  //   } else {
-  //     console.error('Geolocation is not supported by this browser.');
-  //     initMap(); // Initialize map with default location if geolocation is not supported
-  //   }
-  // }
-  // // Initialize the map when the window loads
-  window.onload = initMap;
+    // Function to update student markers
+    function updateStudentMarkers() {
+      students.forEach((student) => {
+        if (markers[student.id]) {
+          // Update existing marker position
+          markers[student.id].setPosition({ lat: student.lat, lng: student.lng });
+        } else {
+          // Create new marker
+          const studentMarker = new google.maps.Marker({
+            position: { lat: student.lat, lng: student.lng },
+            map: map,
+            title: student.name,
+            label: {
+              text: student.name,
+              color: "black",
+              fontSize: "12px",
+              fontWeight: "bold",
+            },
+            icon: {
+              url: "http://maps.google.com/mapfiles/ms/icons/pink-dot.png",
+              labelOrigin: new google.maps.Point(15, -10) // Adjust the label position
+            },
+          });
+
+          markers[student.id] = studentMarker; // Store marker by student ID
+        }
+
+        // Check distance and update marker color
+        const distance = calculateDistance(teacherLocation, student);
+        if (distance > safeDistance) {
+          markers[student.id].setIcon("http://maps.google.com/mapfiles/ms/icons/red-dot.png");
+          alert(`${student.name} is out of the safe zone!`);
+        } else {
+          markers[student.id].setIcon("http://maps.google.com/mapfiles/ms/icons/pink-dot.png");
+        }
+      });
+    }
+
+    // Calculate distance between two points using Haversine formula
+    function calculateDistance(teacher, student) {
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = (teacher.lat * Math.PI) / 180;
+      const φ2 = (student.lat * Math.PI) / 180;
+      const Δφ = ((student.lat - teacher.lat) * Math.PI) / 180;
+      const Δλ = ((student.lng - teacher.lng) * Math.PI) / 180;
+
+      const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distance in meters
+    }
+
+    // Function to fetch GPS data from Adafruit IO
+    async function fetchGPSData() {
+      try {
+        const responseLongitude = await fetch('https://io.adafruit.com/api/v2/your-username/feeds/longitude-feed');                
+        const responseName = await fetch('https://io.adafruit.com/api/v2/your-username/feeds/name-feed');
+        const responseLatitude = await fetch('https://io.adafruit.com/api/v2/your-username/feeds/latitude-feed');
+        
+        const dataLatitude = await responseLatitude.json();
+        const dataLongitude = await responseLongitude.json();
+        const dataName = await responseName.json();
+
+        // Adafruit io json data format is { last_value: "..." }
+        students = [
+          {
+            id: 1,  //can use an uid from the json for each device. for demo purposes, we use 1
+            name: dataName.last_value,
+            lat: parseFloat(dataLatitude.last_value),
+            lng: parseFloat(dataLongitude.last_value),
+          },
+        ];
+        updateStudentMarkers();
+      } catch (error) {
+        console.error('Error fetching GPS data:', error);
+      }
+    }
+
+    // Fetch GPS data every x seconds
+    setInterval(fetchGPSData, 4000);
+    
+    // Get the actual location of the device
+    function getActualLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            teacherLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            
+            console.log("Teacher location:", teacherLocation); // Debugging
+
+            // Initialize map only after getting location
+            initMap();
+          },
+          (error) => {
+            console.error("Error getting location:", error.message);
+            
+            // Handle different errors
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                alert("Location access denied by user.");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                alert("Location information unavailable.");
+                break;
+              case error.TIMEOUT:
+                alert("Request timed out.");
+                break;
+              default:
+                alert("An unknown error occurred.");
+            }
+
+            // Initialize map with default location if error occurs
+            initMap();
+          },
+          {
+            enableHighAccuracy: true, // Improves accuracy
+            timeout: 10000, // Wait max 10s
+            maximumAge: 0, // No cached positions
+          }
+        );
+      } else {
+        alert("Geolocation is not supported by this browser.");
+        initMap(); // Initialize map with default location
+      }
+    }
+
+    // Initialize the map when the window loads
+    window.onload = getActualLocation;
   </script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAEbegQZbj_BpX4sNkGrcRN9Pi_QIKgMLA&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY" async defer></script>
 </body>
 </html>
