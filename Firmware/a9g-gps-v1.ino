@@ -10,38 +10,35 @@ const char* AT_RESET = "AT+RST=1";
 const char* AT_GPS_ON = "AT+GPS=1";
 const char* AT_CREG = "AT+CREG=1";
 const char* AT_CGATT = "AT+CGATT=1";
-const char* AT_CGDCONT = "AT+CGDCONT=1,\"IP\",\"hutch3g\"";
+const char* AT_CGDCONT = "AT+CGDCONT=1,\"IP\",\"<CARRIER-NAME>\""; // EX: hutch3g, airtellive, etc...
 const char* AT_CGACT = "AT+CGACT=1,1";
-const char* MQTT_CONNECTION = "AT+MQTTCONN=\"io.adafruit.com\",1883,\"a9g-dev-1\",120,0,\"kaviboyzz\",\"aio_kjcJ23TZRYF5YQhpQMqOSqXnfxhC\"";
+const char* MQTT_CONNECTION = "AT+MQTTCONN=\"io.adafruit.com\",1883,\"<ADAFRUIT-CLIENT-ID>\",120,0,\"<ADAFRUIT-USERNAME>\",\"<YOUR-ADAFRUIT-API-KEY>\"";
 
 SoftwareSerial a9gSerial(A9G_RX, A9G_TX);  // RX, TX
 
 String sendData(const String& command, const int timeout, boolean debug) {
-  const int BUFFER_SIZE = 200; // Define a maximum buffer size, adjust as needed
-  char buffer[BUFFER_SIZE];      // Use a char array (fixed-size buffer)
+  const int BUFFER_SIZE = 200; 
+  char buffer[BUFFER_SIZE];      
   int bufferIndex = 0;           // Index to track position in the buffer
-  unsigned long startTime = millis(); // Use unsigned long for millis() comparison
+  unsigned long startTime = millis(); 
 
   a9gSerial.println(command);
 
-  while ((millis() - startTime) < timeout) { // More robust timeout check
+  while ((millis() - startTime) < timeout) { 
     while (a9gSerial.available()) {
       if (bufferIndex < BUFFER_SIZE - 1) { // Prevent buffer overflow
         buffer[bufferIndex++] = (char)a9gSerial.read();
       } else {
-        // Buffer is full, handle overflow (optional - e.g., break, truncate, error)
-        Serial.println("Receive buffer overflow!"); // Debug message
-        break; // Stop reading to prevent writing out of bounds
+        // Buffer is full, handle overflow
+        Serial.println("Receive buffer overflow!");
+        break; // Stop reading
       }
     }
-    if (bufferIndex > 0 && !a9gSerial.available()) {
-
-    }
-    delay(0); // Add a small delay to yield processor time (optional, but good practice)
+    delay(10);
   }
 
-  buffer[bufferIndex] = '\0'; // Null-terminate the buffer to make it a C-string
-  String temp(buffer);         // Create a String object from the buffer
+  buffer[bufferIndex] = '\0'; 
+  String temp(buffer);         
 
   if (debug) {
     Serial.print(temp);
@@ -87,9 +84,10 @@ void fetchLocation() {
   if (commaIndex != -1) {
     String lats = res.substring(0, commaIndex);
     String longi = res.substring(commaIndex + 1, 18);
-    a9gSerial.println("AT+MQTTPUB=\"kaviboyzz/feeds/lati\",\"" + lats + "\",0,0,0");
+    // MQTT-END-POINT is as follows: username/topic/feedName
+    a9gSerial.println("AT+MQTTPUB=\"<MQTT-END-POINT>\",\"" + lats + "\",0,0,0");
     delay(1000);
-    a9gSerial.println("AT+MQTTPUB=\"kaviboyzz/feeds/longi\",\"" + longi + "\",0,0,0");
+    a9gSerial.println("AT+MQTTPUB=\"<MQTT-END-POINT>\",\"" + longi + "\",0,0,0");
     delay(1000);
 
     Serial.print("Lat - ");
@@ -99,7 +97,7 @@ void fetchLocation() {
 
     // Publish to MQTT
     String coordinates = lats + "," + longi;
-    a9gSerial.println("AT+MQTTPUB=\"kaviboyzz/feeds/gpsdata.full-data\",\"" + coordinates + "\",0,0,0");
+    a9gSerial.println("AT+MQTTPUB=\"<MQTT-END-POINT>\",\"" + coordinates + "\",0,0,0");
     Serial.println("Aquired: " + coordinates);
     // mqttPub(longi, lats, coordinates);
   }
